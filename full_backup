@@ -2,21 +2,23 @@
 
 # BEGIN CONFIGURATION ==========================================================
 
-BACKUP_DIR="/backups/site_backups"  # The directory in which you want backups placed
+BACKUP_DIR="/opt/backup"  # The directory in which you want backups placed
 DUMP_MYSQL=true
-TAR_SITES=false
-SYNC="none" # Either 's3sync', 'rsync', or 'none'
+TAR_SITES=true
+ETC_BACKUP=true
+SYNC="rsync" # Either 's3sync', 'rsync', or 'none'
 KEEP_MYSQL="14" # How many days worth of mysql dumps to keep
-KEEP_SITES="2" # How many days worth of site tarballs to keep
+KEEP_SITES="10" # How many days worth of site tarballs to keep
 
 MYSQL_HOST="localhost"
-MYSQL_USER="root"
-MYSQL_PASS=""
+MYSQL_USER="user"
+MYSQL_PASS="pass"
 MYSQL_BACKUP_DIR="$BACKUP_DIR/mysql/"
 
-SITES_DIR="/var/www/sites/"
+SITES_DIR="/var/www/"
 SITES_BACKUP_DIR="$BACKUP_DIR/sites/"
-
+ETC_DIR="/etc/"
+ETC_BACKUP_DIR="$BACKUP_DIR/etc/"
 
 # See s3sync info in README
 S3SYNC_PATH="/usr/local/s3sync/s3sync.rb"
@@ -28,8 +30,8 @@ SSL_CERT_DIR="/etc/ssl/certs" # Where your Cert Authority keys live; for verific
 SSL_CERT_FILE="" # If you have just one PEM file for CA verification
 
 # If you don't want to use S3, you can rsync to another server
-RSYNC_USER="user"
-RSYNC_SERVER="other.server.com"
+RSYNC_USER="rsyncuser"
+RSYNC_SERVER="rsyncserver"
 RSYNC_DIR="web_site_backups"
 RSYNC_PORT="22" # Change this if you've customized the SSH port of your backup system
 
@@ -63,6 +65,12 @@ if [[ ! -d $SITES_BACKUP_DIR ]]
   mkdir -p "$SITES_BACKUP_DIR"
 fi
 
+if [[ ! -d $ETC_BACKUP_DIR ]]
+  then
+  mkdir -p "$ETC_BACKUP_DIR"
+fi
+
+
 if [ "$DUMP_MYSQL" = "true" ]
   then
 
@@ -86,6 +94,16 @@ if [ "$DUMP_MYSQL" = "true" ]
   # Delete dumps older than specified number of days
   $FIND_PATH $MYSQL_BACKUP_DIR*.sql.gz -mtime +$KEEP_MYSQL -exec rm {} +
 
+fi
+
+if [ "$ETC_BACKUP" == "true" ]
+  then
+
+  # Get a list of files in the sites directory and tar them one by one
+  echo "------------------------------------"
+  cd $ETC_DIR
+    echo "Archiving $ETC_DIR.."
+    $TAR_PATH -cpzf $ETC_BACKUP_DIR$THE_DATE.tgz /etc/
 fi
 
 if [ "$TAR_SITES" == "true" ]
@@ -115,7 +133,7 @@ if [[ "$SYNC" == "rsync" ]]
   then
   echo "------------------------------------"
   echo "Sending backups to backup server..."
-  $RSYNC_PATH --del -vaze "ssh -p $RSYNC_PORT" $BACKUP_DIR/ $RSYNC_USER@$RSYNC_SERVER:$RSYNC_DIR
+  $RSYNC_PATH --del -vaze "ssh -p $RSYNC_PORT" $BACKUP_DIR/ $RSYNC_SERVER:$RSYNC_DIR
 
 # OR s3sync everything with Amazon S3
 elif [[ "$SYNC" == "s3sync" ]]
