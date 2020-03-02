@@ -9,6 +9,7 @@ ETC_BACKUP=true
 SYNC="rsync" # Either 's3sync', 'rsync', or 'none'
 KEEP_MYSQL="14" # How many days worth of mysql dumps to keep
 KEEP_SITES="10" # How many days worth of site tarballs to keep
+KEEP_ETC="8"    # How many days worth of /etc tarballs to keep
 
 MYSQL_HOST="localhost"
 MYSQL_USER="user"
@@ -64,7 +65,6 @@ if [[ ! -d $SITES_BACKUP_DIR ]]
   then
   mkdir -p "$SITES_BACKUP_DIR"
 fi
-
 if [[ ! -d $ETC_BACKUP_DIR ]]
   then
   mkdir -p "$ETC_BACKUP_DIR"
@@ -99,11 +99,19 @@ fi
 if [ "$ETC_BACKUP" == "true" ]
   then
 
-  # Get a list of files in the sites directory and tar them one by one
+  # Get a list of files in the /etc directory and tar them
   echo "------------------------------------"
   cd $ETC_DIR
     echo "Archiving $ETC_DIR.."
     $TAR_PATH -cpzf $ETC_BACKUP_DIR$THE_DATE.tgz /etc/
+    
+  # Delete old etc backups
+  echo "------------------------------------"
+  echo "Deleting old /etc backups..."
+  # List files to be deleted to stdout (for report)
+  $FIND_PATH $ETC_BACKUP_DIR*.tgz -mtime +$KEEP_ETC
+  # Delete files older than specified number of days
+  $FIND_PATH $ETC_BACKUP_DIR*.tgz -mtime +$KEEP_ETC -exec rm {} +
 fi
 
 if [ "$TAR_SITES" == "true" ]
